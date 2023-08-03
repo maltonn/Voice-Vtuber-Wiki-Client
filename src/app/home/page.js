@@ -70,7 +70,7 @@ function CalcVectorDistanceMatrix(lst) {//lstはデータがすべて入った�
   return DistMatrix
 }
 
-function App() {
+export default function Home() {
   const [Vtubers, setVtubers] = useState([{}])
   const [boardTransform, setBoardTransform] = useState({ x: -10000, y: -10000, scale: 1 })
   const [detailingIndex, setDetailingIndex] = useState(undefined)
@@ -271,4 +271,3 @@ function App() {
   );
 }
 
-export default App;
