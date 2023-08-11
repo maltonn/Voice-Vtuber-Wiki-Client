@@ -5,8 +5,8 @@
     position: absolute;
     width: var(--size);
     height: var(--size);
-    top: calc(50% + 50vh - var(--size) / 2);
-    left: calc(50% + 50vw - var(--size) / 2);
+    top: calc(50vh - var(--size) / 2);
+    left: calc(50vw - var(--size) / 2);
 
     border-radius: 50%;
     border: 3px solid orange;
@@ -14,7 +14,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    transition-duration: 500ms;
+    transition-duration: 100ms;
+    cursor: pointer;
 }
 /* .circle:hover{
     transform: scale(1.2);

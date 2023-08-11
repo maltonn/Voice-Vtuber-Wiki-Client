@@ -14,9 +14,9 @@ export default function Circle(props) {
                 onClick={onClickFunc} className="circle" 
                 style={{
                     transform:`
-                        translate(${props.data["posx"]}px,${props.data["posy"]}px)
-                        scale(${Math.min(1/props.boardTransform.scale**0.8,2)})
-                    `}}>
+                        translate(${props.traX}px,${props.traY}px)
+                    `}}
+                    >
                 <img src={props.data.channel_thumbnail} />
             </div>
         // </a>

@@ -1,121 +1,86 @@
 "use client"
+import interact from 'interactjs'
 import { useEffect, useState, useRef } from 'react';
 import { initializeApp } from "firebase/app";
 import { collection, getDocs, getFirestore } from "firebase/firestore";
 
 import { db } from './libs/firebase';
-
 import './css/App.css';
 
 import "tailwindcss/tailwind.css"
-import PCA from 'pca-js';
 
-import Board from './components/board';
 import Circle from './components/circle';
 import DetailTab from './components/detail_tab';
 import Sidebar from './components/sidebar';
 
-import static_lst from "./static"
-import title from './title.png'
-import Contour from './components/contour';
 
-function Argsort(array) {
-  let arrayObject = array.map((value, index) => { return {value: value, index: index} });
-  arrayObject.sort((a, b) => {
-      if (a.value < b.value) {
-          return -1;
-      } else if (a.value > b.value) {
-          return 1;
-      } else {
-          return 0;
-      }
-  });
 
-  let argIndices = arrayObject.map(data => data.index);
+function getDistanceAndAngle(theta1, phi1, theta2, phi2) {
+  var R = 1; // 地球の半径（キロメートル）
+  var dTheta = theta2 - theta1;
+  var dPhi = phi2 - phi1;
+  var a =
+    Math.sin(dTheta / 2) * Math.sin(dTheta / 2) +
+    Math.cos(theta1) * Math.cos(theta2) *
+    Math.sin(dPhi / 2) * Math.sin(dPhi / 2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  var r = R * c; // 距離（キロメートル）
 
-  return argIndices;
+  // 地球上で(theta1, phi1)を中心とした半径rの円を考えたときの、(theta2, phi2)の角度（北極へ向かう線を0度として時計回り）
+  var y = Math.sin(dPhi) * Math.cos(theta2);
+  var x = Math.cos(theta1) * Math.sin(theta2) -
+    Math.sin(theta1) * Math.cos(theta2) * Math.cos(dPhi);
+  var rad = Math.atan2(y, x);
+
+  return {
+    r: r,    // 距離（キロメートル）
+    rad: rad // 角度（ラジアン）
+  };
 }
-function CalcVectorDistanceMatrix(lst) {//lstはデータがすべて入ったやつ
-  const DistMatrix = []
-  for (let i = 0; i < lst.length; i++) {
-    DistMatrix.push([])
-    for (let j = 0; j < lst.length; j++) {
-      DistMatrix[i].push(0)
-    }
-  }
-  for(let i=0;i<lst.length;i++){
-    for(let j=0;j<lst.length;j++){
-      for(let k=0;k<lst[i]["embedding"].length;k++){
-        DistMatrix[i][j]+=(lst[i]["embedding"][k]-lst[j]["embedding"][k])**2
-      }
-      DistMatrix[i][j]=DistMatrix[i][j]**0.5
-    }
-  }
-  
-  let mx=-1
-  for(let i=0;i<lst.length;i++){
-    for(let j=0;j<lst.length;j++){
-      if(mx<DistMatrix[i][j]){
-        mx=DistMatrix[i][j]
-      }
-    }
-  }
-  for(let i=0;i<lst.length;i++){
-    for(let j=0;j<lst.length;j++){
-      DistMatrix[i][j]/=mx
-      DistMatrix[i][j]=DistMatrix[i][j]
-    }
-  }
+function getDistanceAndAngleOnMercator(theta1, phi1, theta2, phi2) {
+  // メルカトル図法における緯度の変換
+  var y1 = Math.log(Math.tan(Math.PI / 4 + Math.PI / 4 - theta1 / 2));
+  var y2 = Math.log(Math.tan(Math.PI / 4 + Math.PI / 4 - theta2 / 2));
 
-  return DistMatrix
+  // x座標の差とy座標の差を計算
+  var dx = phi2 - phi1;
+  var dy = y2 - y1;
+
+  // 距離の計算
+  var r = Math.sqrt(dx * dx + dy * dy);
+
+  // 角度の計算（北極へ向かう線を0ラジアンとして時計回り）
+  var rad = Math.atan2(dx, dy);
+
+  return {
+    r: r,    // メルカトル図法上の距離
+    rad: rad // メルカトル図法上の角度（ラジアン）
+  };
 }
+
 
 export default function Home() {
   const [Vtubers, setVtubers] = useState([{}])
-  const [boardTransform, setBoardTransform] = useState({ x: -10000, y: -10000, scale: 1 })
   const [detailingIndex, setDetailingIndex] = useState(undefined)
 
-  const [vectorDistanceMatrix, setVectorDistanceMatrix] = useState([[]])
 
   //データのロード
   useEffect(() => {
     const from_firebase = true
-
     if (from_firebase) {
       const lst = []
       getDocs(collection(db, "vtubers")).then((querySnapshot) => {
+        console.log("data loaded")
         querySnapshot.forEach((doc) => {
           const dic = doc.data()
           dic["id"] = doc.id
-          dic["posx"] = dic["embedding"][0]
-          dic["posy"] = dic["embedding"][1]
+          dic["r"] = dic["polar_cord"][0]
+          dic["theta"] = dic["polar_cord"][1]
+          dic["phi"] = dic["polar_cord"][2]
           lst.push(dic)
         });
         setVtubers(lst)
 
-        const embeddingLst = []
-        lst.forEach((vt) => {
-          embeddingLst.push(vt["embedding"])
-        })
-        const vectors = PCA.getEigenVectors(embeddingLst);
-
-        const base1 = vectors[0]["vector"]
-        const base2 = vectors[1]["vector"]
-
-        lst.forEach((vt) => {
-          let elm1 = 0
-          for (let i = 0; i < 10; i++) {
-            elm1 += vt["embedding"][i] * base1[i]
-          }
-          let elm2 = 0
-          for (let i = 0; i < 10; i++) {
-            elm2 += vt["embedding"][i] * base2[i]
-          }
-          vt["posx"] = elm1 * 3
-          vt["posy"] = elm2 * 3
-        })
-
-        setVectorDistanceMatrix(CalcVectorDistanceMatrix(lst))
       }).catch((error) => {
         console.log("Error getting documents: ", error);
         window.alert("Firebaseとの接続に失敗しました")
@@ -124,149 +89,148 @@ export default function Home() {
       const lst = static_lst
       console.log(lst)
       for (let i = 0; i < lst.length; i++) {
-        lst[i]["posx"] = lst[i]["embedding"][0]
-        lst[i]["posy"] = lst[i]["embedding"][1]
+        dic["r"] = dic["polar_cord"][0]
+        dic["theta"] = dic["polar_cord"][1]
+        dic["phi"] = dic["polar_cord"][2]
       }
       setVtubers(lst);
-
-      (async () => {
-        const embeddingLst = []
-        lst.forEach((vt) => {
-          embeddingLst.push(vt["embedding"])
-        })
-
-        const vectors = PCA.getEigenVectors(embeddingLst);
-        const base1 = vectors[0]["vector"]
-        const base2 = vectors[1]["vector"]
-        lst.forEach((vt) => {
-          let elm1 = 0
-          for (let i = 0; i < 512; i++) {
-            elm1 += vt["embedding"][i] * base1[i]
-          }
-          let elm2 = 0
-          for (let i = 0; i < 512; i++) {
-            elm2 += vt["embedding"][i] * base2[i]
-          }
-          vt["posx"] = elm1 / 5
-          vt["posy"] = elm2 / 5
-        })
-        setVectorDistanceMatrix(CalcVectorDistanceMatrix(lst))
-      })();
     }
 
   }, [])
 
   //キャラクタークリック時の処理
-  const boardRef = useRef(null)
   const onCircleClick = (index) => {
     setDetailingIndex(index)
 
-    const C = Vtubers[index]//center
-
-    //ボードの真ん中にクリックしたキャラが来るように移動
-    boardRef.current.style.transitionDuration = "500ms"
-    setBoardTransform({
-      x: -10000 - C["posx"],
-      y: -10000 - C["posy"],
-      scale: 1,
+    setCenterCoord({
+      theta: Vtubers[index].theta,
+      phi: Vtubers[index].phi,
     })
-    setTimeout(() => {
-      boardRef.current.style.transitionDuration = "0s"
-    }, 500)
-
-    //中心キャラの回りに良い感じに配置
-    const dists = vectorDistanceMatrix[index]
-    const mn_dist=Math.min(...dists.filter((_,i)=>i!=index))
-
-    const argsorted_dists=Argsort(dists)
-    for(let i=0;i<argsorted_dists.length;i++){
-      const idx=argsorted_dists[i]
-      const scale=2000
-      const r=(dists[idx] - mn_dist )*scale + 100
-
-      if(i==0){//最も近いのはそれ自身
-        continue
-      }
-      if(i==1){
-        let dx=Vtubers[argsorted_dists[i]]["posx"]-C["posx"]
-        let dy=Vtubers[argsorted_dists[i]]["posx"]-C["posx"]
-        const norm=Math.sqrt(dx**2+dy**2)
-        dx/=norm
-        dy/=norm
-
-        Vtubers[argsorted_dists[i]]["posx"]=C["posx"]+r*dx
-        Vtubers[argsorted_dists[i]]["posy"]=C["posy"]+r*dy
-        continue
-      }
-    
-
-      // if(i>3){
-      //   continue
-      // }
-      const degdiv=360
-      let min_s=99999999
-      let min_j=0
-      for(let j=0;j<degdiv;j++){
-        let s=0
-        for(let k=0;k<i-1;k++){
-          const xk=Vtubers[argsorted_dists[k]]["posx"]
-          const yk=Vtubers[argsorted_dists[k]]["posy"]
-
-          const a=Math.sqrt((xk-r*Math.cos(Math.PI*2/degdiv*j))**2+(yk-r*Math.sin(Math.PI*2/degdiv*j))**2)
-          const b=(vectorDistanceMatrix[idx][argsorted_dists[k]])*scale
-          s+=(a-b)**2
-          
-          // console.log(
-          //   j,
-          //   a,
-          //   b,
-          //   a-b
-          //   )
-        }
-        if(s<min_s){
-          min_s=s
-          min_j=j
-        }
-      }
-      Vtubers[idx]["posx"]=C["posx"]+r*Math.cos(Math.PI*2/degdiv*min_j)
-      Vtubers[idx]["posy"]=C["posy"]+r*Math.sin(Math.PI*2/degdiv*min_j)
-    }
-
-
   }
 
 
 
+
+
+  const [thetaWidth, setThetaWidth] = useState(Math.PI / 3)//X軸方向のtheta幅
+  const [phiWidth, setPhiWidth] = useState(Math.PI / 3)//Y軸方向のphi幅
+  const [centerCoord, setCenterCoord] = useState({
+    theta: Math.PI / 2,
+    phi: 0,
+  })//中心の座標 theta,phi
+
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+
+  const isMouseTouching = useRef(false)
+  const touchStartInfo = useRef()
+
+
+  useEffect(() => {
+    const mousedownfunc = (e) => {
+      isMouseTouching.current = true
+      touchStartInfo.current = {
+        x: e.x,
+        y: e.y,
+        centerCoord: {
+          theta: centerCoord.theta,
+          phi: centerCoord.phi,
+        }
+      }
+    }
+    const mousemovefunc = (e) => {
+      if (!isMouseTouching.current) {
+        return
+      }
+      const tmp=(e.y - touchStartInfo.current.y) / vh * thetaWidth
+      let theta = touchStartInfo.current.centerCoord.theta - (2*Math.atan(Math.exp(tmp))-Math.PI/2)*1.1
+      let phi = touchStartInfo.current.centerCoord.phi - (e.x - touchStartInfo.current.x) / vw * phiWidth*1.1
+
+      if (theta < Math.PI ) {
+        theta = theta + Math.PI
+      }
+      if (theta > Math.PI) {
+        theta = theta - Math.PI 
+      }
+      if (phi < -Math.PI) {
+        phi = phi + Math.PI * 2
+      }
+      if (phi > Math.PI) {
+        phi = phi - Math.PI * 2
+      }
+
+      setCenterCoord({
+        theta: theta,
+        phi: phi,
+      })
+    }
+    const mouseupfunc = (e) => {
+      isMouseTouching.current = false
+    }
+
+
+
+    document.addEventListener("mousedown", mousedownfunc)
+    document.addEventListener("mousemove", mousemovefunc)
+    document.addEventListener("mouseup", mouseupfunc)
+    return () => {
+      document.removeEventListener("mousedown", mousedownfunc)
+      document.removeEventListener("mousemove", mousemovefunc)
+      document.removeEventListener("mouseup", mouseupfunc)
+    }
+
+  }, [centerCoord])
+
   return (
     <div className="App">
-      
-      <Board
-        boardTransform={boardTransform}
-        setBoardTransform={setBoardTransform}
-        boardRef={boardRef}
-      >
-        <Contour
-          boardTransform={boardTransform}
-        ></Contour>
-        {
-          Vtubers.map((vt, index) => (
-            <Circle
-              key={index}
-              index={index}
-              data={vt}
 
-              onCircleClick={onCircleClick}
-              boardTransform={boardTransform}
-            />
-          ))
+      <div
+      >
+
+        {
+          Vtubers.map((vt, index) => {
+            const theta_phase = [0, Math.PI, -Math.PI]
+            const phi_phase = [0, 2*Math.PI, -2*Math.PI]
+            for (let i = 0; i < 3; i++) {
+              for (let j = 0; j < 3; j++) {
+                const theta = vt.theta + theta_phase[i]
+                const phi = vt.phi + phi_phase[j]
+                const res = getDistanceAndAngleOnMercator(centerCoord.theta, centerCoord.phi, theta, phi)
+                if (res.r < Math.max(thetaWidth, phiWidth) / Math.sqrt(2)) {
+                  return (
+                    <Circle
+                      key={index}
+                      index={index}
+                      data={vt}
+                      traX={res.r * Math.sin(res.rad) / thetaWidth * vw}
+                      traY={-res.r * Math.cos(res.rad) / phiWidth * vh}
+                      onCircleClick={onCircleClick}
+                    />
+                  )
+                }
+              }
+            }
+          })
         }
-      </Board>
+      </div>
       <Sidebar></Sidebar>
       <DetailTab
         data={detailingIndex == undefined ? undefined : Vtubers[detailingIndex]}
       />
-      
-      <img className="title-image" src={title}></img>
+      <div
+        className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
+        aria-hidden="true"
+      >
+        <div
+          className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
+          style={{
+            clipPath:
+              'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
+          }}
+        />
+      </div>
+
+      {/* <img className="title-image" src={title}></img> */}
     </div>
   );
 }
