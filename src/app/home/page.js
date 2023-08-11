@@ -139,12 +139,14 @@ export default function Home() {
     phi: 0,
   })//中心の座標 theta,phi
 
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-
+  const vw=useRef(0)
+  const vh=useRef(0)
   const isMouseTouching = useRef(false)
   const touchStartInfo = useRef()
-
+  useEffect(() => {
+    vw.current.ref=window.innerWidth
+    vh.current.ref= window.innerHeight
+  })
 
   useEffect(() => {
     const mousedownfunc = (e) => {
