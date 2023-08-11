@@ -144,8 +144,8 @@ export default function Home() {
   const isMouseTouching = useRef(false)
   const touchStartInfo = useRef()
   useEffect(() => {
-    vw.current.ref=window.innerWidth
-    vh.current.ref= window.innerHeight
+    vw.current=window.innerWidth
+    vh.current= window.innerHeight
   })
 
   useEffect(() => {
