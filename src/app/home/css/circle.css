@@ -1,5 +1,5 @@
 :root{
-    --size:50px;
+    --size:70px;
 }
 .circle{
     position: absolute;
@@ -17,10 +17,16 @@
     transition-duration: 100ms;
     cursor: pointer;
 }
-/* .circle:hover{
-    transform: scale(1.2);
-} */
+.circle:hover{
+    width: calc(var(--size)*1.2);
+    height:  calc(var(--size)*1.2);
+    top: calc(50vh - var(--size)*1.2 / 2);
+    left: calc(50vw - var(--size)*1.2 / 2);
 
+}
+.circle.slow-animation{
+    transition-duration: 500ms;
+}
 .circle > img{
     width: 100%;
     height: 100%;

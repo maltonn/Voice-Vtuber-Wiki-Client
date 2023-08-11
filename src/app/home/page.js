@@ -12,7 +12,7 @@ import "tailwindcss/tailwind.css"
 import Circle from './components/circle';
 import DetailTab from './components/detail_tab';
 import Sidebar from './components/sidebar';
-
+import SeachBox from './components/searchBox';
 
 
 function getDistanceAndAngle(theta1, phi1, theta2, phi2) {
@@ -100,20 +100,40 @@ export default function Home() {
 
   //キャラクタークリック時の処理
   const onCircleClick = (index) => {
+
+    // const circles=document.getElementsByClassName("circle")
+    // for(let i=0;i<circles.length;i++){
+    //   circles[i].classList.add("slow-animation")
+    // }
+
+    if(typeof(index)=="string"){
+      for(let i=0;i<Vtubers.length;i++){
+        if(Vtubers[i].id==index){
+          index=i
+          break
+        }
+      }  
+    }
     setDetailingIndex(index)
 
     setCenterCoord({
       theta: Vtubers[index].theta,
       phi: Vtubers[index].phi,
     })
+
+    // setTimeout(()=>{
+    //   for(let i=0;i<circles.length;i++){
+    //     circles[i].classList.remove("slow-animation")
+    //   }
+    // },500)
   }
 
 
 
 
 
-  const [thetaWidth, setThetaWidth] = useState(Math.PI / 3)//X軸方向のtheta幅
-  const [phiWidth, setPhiWidth] = useState(Math.PI / 3)//Y軸方向のphi幅
+  const [thetaWidth, setThetaWidth] = useState(Math.PI / 8)//Y軸方向のtheta幅
+  const [phiWidth, setPhiWidth] = useState(Math.PI / 3)//X軸方向のphi幅
   const [centerCoord, setCenterCoord] = useState({
     theta: Math.PI / 2,
     phi: 0,
@@ -143,8 +163,8 @@ export default function Home() {
         return
       }
       const tmp=(e.y - touchStartInfo.current.y) / vh * thetaWidth
-      let theta = touchStartInfo.current.centerCoord.theta - (2*Math.atan(Math.exp(tmp))-Math.PI/2)*1.1
-      let phi = touchStartInfo.current.centerCoord.phi - (e.x - touchStartInfo.current.x) / vw * phiWidth*1.1
+      let theta = touchStartInfo.current.centerCoord.theta - (2*Math.atan(Math.exp(tmp))-Math.PI/2)
+      let phi = touchStartInfo.current.centerCoord.phi - (e.x - touchStartInfo.current.x) / vw * phiWidth
 
       if (theta < Math.PI ) {
         theta = theta + Math.PI
@@ -184,8 +204,7 @@ export default function Home() {
   return (
     <div className="App">
 
-      <div
-      >
+      <div style={{zIndex:0}}>
 
         {
           Vtubers.map((vt, index) => {
@@ -202,9 +221,11 @@ export default function Home() {
                       key={index}
                       index={index}
                       data={vt}
-                      traX={res.r * Math.sin(res.rad) / thetaWidth * vw}
-                      traY={-res.r * Math.cos(res.rad) / phiWidth * vh}
+                      traX={res.r * Math.sin(res.rad) / phiWidth * vw}
+                      traY={-res.r * Math.cos(res.rad) / thetaWidth * vh}
+                      r={vt.r}
                       onCircleClick={onCircleClick}
+                      
                     />
                   )
                 }
@@ -213,10 +234,14 @@ export default function Home() {
           })
         }
       </div>
-      <Sidebar></Sidebar>
+      {/* <Sidebar></Sidebar> */}
       <DetailTab
         data={detailingIndex == undefined ? undefined : Vtubers[detailingIndex]}
       />
+      <SeachBox
+        Vtubers={Vtubers}
+        onCircleClick={onCircleClick}
+      ></SeachBox>
       <div
         className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
         aria-hidden="true"

@@ -34,7 +34,7 @@ export default function Root() {
               >
                 サイトにアクセス
               </a>
-              <a href="https://github.com/maltonn/Voice-Vtuber-Wiki-Client" className="text-sm font-semibold leading-6 text-gray-900">
+              <a href="https://github.com/maltonn/Voice-Vtuber-Wiki-Client" className="text-sm font-semibold leading-6 text-gray-900" target='_blank'>
                 ソースコード <span aria-hidden="true">→</span>
               </a>
             </div>

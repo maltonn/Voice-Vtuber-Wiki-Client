@@ -81,7 +81,7 @@ export default function Sidebar() {
             sendLock ?(
             <div>
               {/* <p>処理中....これには数分かかることがあります。気長にお待ちください</p> */}
-              <div class="loader">Loading...</div>
+              <div className="loader">Loading...</div>
             </div>
             ):(
               <button type="submit" className={sendLock ? "disabledBtn" : "btn"} disabled={sendLock}>送信</button>
